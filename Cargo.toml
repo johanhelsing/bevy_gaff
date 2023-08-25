@@ -1,0 +1,16 @@
+[package]
+name = "bevy_gaff"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+bevy = "0.11"
+bevy_xpbd_2d = { git = "https://github.com/jondolf/bevy_xpbd" }
+bevy_matchbox = { version = "0.7", features = ["ggrs"] }
+bevy_ggrs = "0.13"
+bytemuck = { version = "1.7", features = ["derive"] }
+clap = { version = "4.4", features = ["derive"] }
+serde = "1"
+
+[profile.dev]
+opt-level = 2 # Use slightly better optimization, so examples work
