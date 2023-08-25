@@ -45,13 +45,18 @@ impl std::hash::Hash for PreviousPosition {
     }
 }
 
-#[derive(Resource, Default, Reflect, Hash, Deref, DerefMut)]
+#[derive(Resource, Debug, Default, Reflect, Hash, Deref, DerefMut)]
 #[reflect(Resource, Hash)]
 pub struct FrameCount {
     pub frame: usize,
 }
 
-fn setup_scene(mut commands: Commands) {
+fn setup_scene(mut commands: Commands, frame: Res<FrameCount>) {
+    if **frame != 0 {
+        return;
+    }
+
+    info!("Setting up scene");
     let square_sprite = Sprite {
         color: Color::rgb(0.7, 0.7, 0.8),
         custom_size: Some(Vec2::splat(50.0)),
@@ -59,49 +64,57 @@ fn setup_scene(mut commands: Commands) {
     };
 
     // Ceiling
-    commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
-            ..default()
-        },
-        RigidBody::Static,
-        Position(Vector::Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
-    ));
+    commands
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite.clone(),
+                transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+                ..default()
+            },
+            RigidBody::Static,
+            Position(Vector::Y * 50.0 * 6.0),
+            Collider::cuboid(50.0 * 20.0, 50.0),
+        ))
+        .add_rollback();
     // Floor
-    commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
-            ..default()
-        },
-        RigidBody::Static,
-        Position(Vector::NEG_Y * 50.0 * 6.0),
-        Collider::cuboid(50.0 * 20.0, 50.0),
-    ));
+    commands
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite.clone(),
+                transform: Transform::from_scale(Vec3::new(20.0, 1.0, 1.0)),
+                ..default()
+            },
+            RigidBody::Static,
+            Position(Vector::NEG_Y * 50.0 * 6.0),
+            Collider::cuboid(50.0 * 20.0, 50.0),
+        ))
+        .add_rollback();
     // Left wall
-    commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
-            ..default()
-        },
-        RigidBody::Static,
-        Position(Vector::NEG_X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
-    ));
+    commands
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite.clone(),
+                transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+                ..default()
+            },
+            RigidBody::Static,
+            Position(Vector::NEG_X * 50.0 * 9.5),
+            Collider::cuboid(50.0, 50.0 * 11.0),
+        ))
+        .add_rollback();
     // Right wall
-    commands.spawn((
-        SpriteBundle {
-            sprite: square_sprite,
-            transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
-            ..default()
-        },
-        RigidBody::Static,
-        Position(Vector::X * 50.0 * 9.5),
-        Collider::cuboid(50.0, 50.0 * 11.0),
-    ));
+    commands
+        .spawn((
+            SpriteBundle {
+                sprite: square_sprite,
+                transform: Transform::from_scale(Vec3::new(1.0, 11.0, 1.0)),
+                ..default()
+            },
+            RigidBody::Static,
+            Position(Vector::X * 50.0 * 9.5),
+            Collider::cuboid(50.0, 50.0 * 11.0),
+        ))
+        .add_rollback();
 }
 
 fn spawn_marbles(
@@ -111,6 +124,7 @@ fn spawn_marbles(
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
     if **frame_count != 0 {
+        info!("not spawning marbles on frame {frame_count:?}");
         return;
     }
     info!("Spawning marbles");
@@ -218,7 +232,9 @@ fn main() {
         .add_plugins((
             DefaultPlugins
                 .set(LogPlugin {
-                    filter: "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug".into(),
+                    filter:
+                        "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug,bevy_ggrs=debug"
+                            .into(),
                     level: bevy::log::Level::DEBUG,
                 })
                 .set(WindowPlugin {
@@ -255,22 +271,29 @@ fn main() {
         // Some of our systems need the query parameters
         .insert_resource(args)
         .add_state::<AppState>()
-        .add_systems(Startup, setup)
+        .add_systems(Startup, (setup, setup_scene, spawn_marbles).chain())
         .add_systems(
             OnEnter(AppState::Lobby),
             (lobby_startup, start_matchbox_socket),
         )
         .add_systems(Update, lobby_system.run_if(in_state(AppState::Lobby)))
         .add_systems(OnExit(AppState::Lobby), lobby_cleanup)
-        .add_systems(OnEnter(AppState::InGame), setup_scene)
+        // .add_systems(
+        //     OnEnter(AppState::InGame),
+        //     (
+        //         setup_scene,
+        //         // spawn_marbles.after(setup_scene),
+        //     ),
+        // )
         .add_systems(Update, log_ggrs_events.run_if(in_state(AppState::InGame)))
         // these systems will be executed as part of the advance frame update
         .add_systems(
             GgrsSchedule,
             (
-                spawn_marbles,
-                movement,
+                // setup_scene,
+                // spawn_marbles,
                 step_physics,
+                movement,
                 update_previous_position,
                 increase_frame_system,
             )
