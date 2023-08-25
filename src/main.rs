@@ -3,7 +3,7 @@ use bevy::core::{Pod, Zeroable};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_ggrs::ggrs::{Config, PlayerHandle, PlayerType, SessionBuilder};
+use bevy_ggrs::ggrs::{Config, DesyncDetection, PlayerHandle, PlayerType, SessionBuilder};
 use bevy_ggrs::{
     AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
 };
@@ -403,6 +403,7 @@ fn lobby_system(
 
     // start the GGRS session
     let session = session_builder
+        .with_desync_detection_mode(DesyncDetection::On { interval: 10 })
         .start_p2p_session(channel)
         .expect("failed to start session");
 
