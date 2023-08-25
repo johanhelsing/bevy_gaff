@@ -227,11 +227,8 @@ fn main() {
         ))
         .add_ggrs_plugin(
             GgrsPlugin::<GgrsConfig>::new()
-                // define frequency of rollback game logic update
                 .with_update_frequency(FPS)
-                // define system that returns inputs given a player handle, so GGRS can send the inputs
-                // around
-                .with_input_system(input) // register types of components AND resources you want to be rolled back
+                .with_input_system(input)
                 .register_rollback_component::<Transform>()
                 .register_rollback_component::<Position>()
                 .register_rollback_component::<LinearVelocity>()
@@ -239,11 +236,10 @@ fn main() {
                 .register_rollback_component::<PreviousPosition>()
                 .register_rollback_resource::<FrameCount>(),
         )
-        // .insert_resource(ClearColor(Color::rgb(0.69, 0.69, 0.69)))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
-        .insert_resource(PhysicsTimestep::FixedOnce(1. / 60.))
+        .insert_resource(PhysicsTimestep::FixedOnce(1. / FPS as f32))
         .init_resource::<FrameCount>()
         // Some of our systems need the query parameters
         .insert_resource(args)
@@ -255,18 +251,13 @@ fn main() {
         )
         .add_systems(Update, lobby_system.run_if(in_state(AppState::Lobby)))
         .add_systems(OnExit(AppState::Lobby), lobby_cleanup)
-        // .add_systems(
-        //     OnEnter(AppState::InGame),
-        //     (
-        //         setup_scene,
-        //         // spawn_marbles.after(setup_scene),
-        //     ),
-        // )
         .add_systems(Update, log_ggrs_events.run_if(in_state(AppState::InGame)))
         // these systems will be executed as part of the advance frame update
         .add_systems(
             GgrsSchedule,
             (
+                // ideally these systems should be part of the rollback schedule, but seems it breaks
+                // synctest sessions for some reason... should investigate...
                 // setup_scene,
                 // spawn_marbles,
                 step_physics,
@@ -276,9 +267,6 @@ fn main() {
             )
                 .chain(),
         )
-        // .add_systems(OnEnter(AppState::Paused), bevy_xpbd_2d::pause)
-        // .add_systems(OnExit(AppState::Paused), bevy_xpbd_2d::resume)
-        // .add_systems(Update, step_button.run_if(in_state(AppState::Paused)))
         .run();
 }
 
