@@ -14,21 +14,23 @@ use grabber_2d::GrabberPlugin;
 mod args;
 mod grabber_2d;
 
+const FPS: usize = 60;
+
 /// You need to define a config struct to bundle all the generics of GGRS. You can safely ignore
 /// `State` and leave it as u8 for all GGRS functionality.
 /// TODO: Find a way to hide the state type.
 #[derive(Debug)]
-pub struct GgrsConfig;
+struct GgrsConfig;
 impl Config for GgrsConfig {
-    type Input = BoxInput;
+    type Input = GaffInput;
     type State = u8;
     type Address = PeerId;
 }
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
-pub struct BoxInput {
-    pub inp: u8,
+struct GaffInput {
+    buttons: u8,
 }
 
 #[derive(Component)]
@@ -47,8 +49,8 @@ impl std::hash::Hash for PreviousPosition {
 
 #[derive(Resource, Debug, Default, Reflect, Hash, Deref, DerefMut)]
 #[reflect(Resource, Hash)]
-pub struct FrameCount {
-    pub frame: usize,
+struct FrameCount {
+    frame: usize,
 }
 
 fn setup_scene(mut commands: Commands, frame: Res<FrameCount>) {
@@ -168,7 +170,7 @@ fn movement(
     mut marbles: Query<&mut LinearVelocity, With<Marble>>,
 ) {
     for input in inputs.iter() {
-        let input = input.0.inp;
+        let input = input.0.buttons;
         for mut linear_velocity in &mut marbles {
             if input & INPUT_UP != 0 {
                 linear_velocity.y += 50.0;
@@ -186,29 +188,6 @@ fn movement(
     }
 }
 
-// fn pause_button(
-//     current_state: ResMut<State<AppState>>,
-//     mut next_state: ResMut<NextState<AppState>>,
-//     keys: Res<Input<KeyCode>>,
-// ) {
-//     if keys.just_pressed(KeyCode::P) {
-//         let new_state = match current_state.get() {
-//             AppState::Paused => AppState::InGame,
-//             AppState::InGame => AppState::Paused,
-//             _ => current_state.clone(),
-//         };
-//         next_state.0 = Some(new_state);
-//     }
-// }
-
-// fn step_button(mut physics_loop: ResMut<PhysicsLoop>, keys: Res<Input<KeyCode>>) {
-//     if keys.just_pressed(KeyCode::Return) {
-//         physics_loop.step();
-//     }
-// }
-
-const FPS: usize = 60;
-
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]
 enum AppState {
     #[default]
@@ -217,8 +196,6 @@ enum AppState {
     InGame,
     Paused,
 }
-
-const SKY_COLOR: Color = Color::rgb(0.69, 0.69, 0.69);
 
 #[derive(ScheduleLabel, Clone, Debug, Hash, Eq, PartialEq)]
 struct PhysicsSchedule;
@@ -262,7 +239,7 @@ fn main() {
                 .register_rollback_component::<PreviousPosition>()
                 .register_rollback_resource::<FrameCount>(),
         )
-        .insert_resource(ClearColor(SKY_COLOR))
+        // .insert_resource(ClearColor(Color::rgb(0.69, 0.69, 0.69)))
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
@@ -462,7 +439,7 @@ const INPUT_DOWN: u8 = 1 << 1;
 const INPUT_LEFT: u8 = 1 << 2;
 const INPUT_RIGHT: u8 = 1 << 3;
 
-fn input(_handle: In<PlayerHandle>, keyboard_input: Res<Input<KeyCode>>) -> BoxInput {
+fn input(_handle: In<PlayerHandle>, keyboard_input: Res<Input<KeyCode>>) -> GaffInput {
     let mut input: u8 = 0;
 
     if keyboard_input.pressed(KeyCode::W) {
@@ -478,7 +455,7 @@ fn input(_handle: In<PlayerHandle>, keyboard_input: Res<Input<KeyCode>>) -> BoxI
         input |= INPUT_RIGHT;
     }
 
-    BoxInput { inp: input }
+    GaffInput { buttons: input }
 }
 
 fn increase_frame_system(mut frame_count: ResMut<FrameCount>) {
