@@ -1,25 +1,25 @@
-use crate::input::*;
+use crate::{input::*, lobby::LobbyPlugin};
 use args::*;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_ggrs::ggrs::{Config, DesyncDetection, PlayerType, SessionBuilder};
+use bevy_ggrs::ggrs::{Config, PlayerType, SessionBuilder};
 use bevy_ggrs::{
     AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
 };
 use bevy_matchbox::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use grabber_2d::GrabberPlugin;
-use input::INPUT_UP;
 
 mod args;
 mod grabber_2d;
 mod input;
+mod lobby;
 
 const FPS: usize = 60;
 
 #[derive(Debug)]
-struct GgrsConfig;
+pub struct GgrsConfig;
 impl Config for GgrsConfig {
     type Input = GaffInput;
     type State = u8;
@@ -32,6 +32,9 @@ struct Marble;
 #[derive(Component, Default, Reflect)]
 #[reflect(Component, Hash)]
 struct PreviousPosition(Vec2);
+
+#[derive(Component)]
+pub struct MainCamera;
 
 impl std::hash::Hash for PreviousPosition {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
@@ -185,7 +188,7 @@ fn movement(
 }
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, Hash, States)]
-enum AppState {
+pub enum AppState {
     #[default]
     Startup,
     Lobby,
@@ -219,6 +222,7 @@ fn main() {
                 }),
             PhysicsPlugins::new(PhysicsSchedule),
             FrameTimeDiagnosticsPlugin,
+            LobbyPlugin,
             GrabberPlugin,
         ))
         .add_ggrs_plugin(
@@ -241,12 +245,6 @@ fn main() {
         .insert_resource(args)
         .add_state::<AppState>()
         .add_systems(Startup, (setup, setup_scene, spawn_marbles).chain())
-        .add_systems(
-            OnEnter(AppState::Lobby),
-            (lobby_startup, start_matchbox_socket),
-        )
-        .add_systems(Update, lobby_system.run_if(in_state(AppState::Lobby)))
-        .add_systems(OnExit(AppState::Lobby), lobby_cleanup)
         .add_systems(Update, log_ggrs_events.run_if(in_state(AppState::InGame)))
         // these systems will be executed as part of the advance frame update
         .add_systems(
@@ -267,7 +265,7 @@ fn main() {
 }
 
 fn setup(mut commands: Commands, mut app_state: ResMut<NextState<AppState>>, args: Res<Args>) {
-    commands.spawn(Camera2dBundle::default());
+    commands.spawn((MainCamera, Camera2dBundle::default()));
     if args.players == 1 {
         info!("starting synctest session");
         let mut session_builder = configure_session(1);
@@ -285,119 +283,7 @@ fn setup(mut commands: Commands, mut app_state: ResMut<NextState<AppState>>, arg
     }
 }
 
-fn start_matchbox_socket(mut commands: Commands, args: Res<Args>) {
-    let room_id = match &args.room {
-        Some(id) => id.clone(),
-        None => format!("bevy_ggrs?next={}", &args.players),
-    };
-
-    let room_url = format!("{}/{}", &args.matchbox, room_id);
-    info!("connecting to matchbox server: {room_url:?}");
-
-    commands.insert_resource(MatchboxSocket::new_ggrs(room_url));
-}
-
-// Marker components for UI
-#[derive(Component)]
-struct LobbyText;
-#[derive(Component)]
-struct LobbyUI;
-
-fn lobby_startup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // All this is just for spawning centered text.
-    commands
-        .spawn(NodeBundle {
-            style: Style {
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                position_type: PositionType::Absolute,
-                justify_content: JustifyContent::Center,
-                align_items: AlignItems::FlexEnd,
-                ..default()
-            },
-            background_color: Color::rgb(0.43, 0.41, 0.38).into(),
-            ..default()
-        })
-        .with_children(|parent| {
-            parent
-                .spawn(TextBundle {
-                    style: Style {
-                        align_self: AlignSelf::Center,
-                        justify_content: JustifyContent::Center,
-                        ..default()
-                    },
-                    text: Text::from_section(
-                        "Entering lobby...",
-                        TextStyle {
-                            font: asset_server.load("fonts/quicksand-light.ttf"),
-                            font_size: 96.,
-                            color: Color::BLACK,
-                        },
-                    ),
-                    ..default()
-                })
-                .insert(LobbyText);
-        })
-        .insert(LobbyUI);
-}
-
-fn lobby_cleanup(query: Query<Entity, With<LobbyUI>>, mut commands: Commands) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
-    }
-}
-
-fn lobby_system(
-    mut app_state: ResMut<NextState<AppState>>,
-    args: Res<Args>,
-    mut socket: ResMut<MatchboxSocket<SingleChannel>>,
-    mut commands: Commands,
-    mut query: Query<&mut Text, With<LobbyText>>,
-) {
-    // regularly call update_peers to update the list of connected peers
-    for (peer, new_state) in socket.update_peers() {
-        // you can also handle the specific dis(connections) as they occur:
-        match new_state {
-            PeerState::Connected => info!("peer {peer} connected"),
-            PeerState::Disconnected => info!("peer {peer} disconnected"),
-        }
-    }
-
-    let connected_peers = socket.connected_peers().count();
-    let remaining = args.players - (connected_peers + 1);
-    query.single_mut().sections[0].value = format!("Waiting for {remaining} more player(s)",);
-    if remaining > 0 {
-        return;
-    }
-
-    info!("All peers have joined, going in-game");
-
-    // extract final player list
-    let players = socket.players();
-
-    let mut session_builder = configure_session(args.players);
-
-    for (i, player) in players.into_iter().enumerate() {
-        session_builder = session_builder
-            .add_player(player, i)
-            .expect("failed to add player");
-    }
-
-    let channel = socket.take_channel(0).unwrap();
-
-    // start the GGRS session
-    let session = session_builder
-        .with_desync_detection_mode(DesyncDetection::On { interval: 10 })
-        .start_p2p_session(channel)
-        .expect("failed to start session");
-
-    commands.insert_resource(Session::P2P(session));
-
-    // transition to in-game state
-    app_state.set(AppState::InGame);
-}
-
-fn configure_session(players: usize) -> SessionBuilder<GgrsConfig> {
+pub fn configure_session(players: usize) -> SessionBuilder<GgrsConfig> {
     SessionBuilder::<GgrsConfig>::new()
         .with_num_players(players)
         .with_max_prediction_window(12)
