@@ -32,8 +32,8 @@ fn grab(
     mut commands: Commands,
     buttons: Res<Input<MouseButton>>,
     windows: Query<&Window, With<PrimaryWindow>>,
-    camera: Query<(&Camera, &GlobalTransform)>,
-    mut grabber: Query<(Entity, &mut Position), (With<GrabPoint>, Without<Collider>)>,
+    cameras: Query<(&Camera, &GlobalTransform)>,
+    mut grabbers: Query<(Entity, &mut Position), (With<GrabPoint>, Without<Collider>)>,
     joints: Query<(Entity, &DistanceJoint), With<GrabberJoint>>,
     bodies: Query<(&RigidBody, &Position, &Rotation), Without<GrabPoint>>,
     spatial_query: SpatialQuery,
@@ -41,7 +41,7 @@ fn grab(
     // If grab button is pressed, spawn or update grab point and grabber joint if they don't exist
     if buttons.pressed(MouseButton::Left) {
         let window = windows.single();
-        let (camera, camera_transform) = camera.single();
+        let (camera, camera_transform) = cameras.single();
 
         if let Some(cursor_world_pos) = window
             .cursor_position()
@@ -50,7 +50,7 @@ fn grab(
             let grabber_entity: Entity;
 
             // If grabber exists, update its position, otherwise spawn it
-            if let Ok((entity, mut position)) = grabber.get_single_mut() {
+            if let Ok((entity, mut position)) = grabbers.get_single_mut() {
                 position.0 = cursor_world_pos;
                 grabber_entity = entity;
             } else {
@@ -86,7 +86,7 @@ fn grab(
         }
     } else if buttons.just_released(MouseButton::Left) {
         // If grab button was released, despawn grabbers and grabber joints
-        for (entity, _) in &grabber {
+        for (entity, _) in &grabbers {
             commands.entity(entity).despawn_recursive();
         }
         for (entity, _) in &joints {
