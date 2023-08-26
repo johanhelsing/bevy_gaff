@@ -1,14 +1,19 @@
-//! 2D grabber plugin for bevy_xpbd_2d.
+//! 2D grabber plugin for bevy_xpbd_2d
 
-use bevy::{prelude::*, window::PrimaryWindow};
+use bevy::prelude::*;
+use bevy_ggrs::{AddRollbackCommandExtension, PlayerInputs};
 use bevy_xpbd_2d::{math::*, prelude::*};
+
+use crate::{input::INPUT_MOUSE_LEFT, GgrsConfig};
 
 #[derive(Default)]
 pub struct GrabberPlugin;
 
 impl Plugin for GrabberPlugin {
-    fn build(&self, app: &mut App) {
-        app.add_systems(Update, grab);
+    fn build(&self, _app: &mut App) {
+        info!("Adding grabber plugin");
+        // todo: why is this borked?
+        // app.add_systems(GgrsSchedule, grab.before(step_physics));
     }
 }
 
@@ -20,33 +25,28 @@ const GRAB_ANGULAR_DAMPING: Scalar = 1.0;
 
 /// A marker component for joints used by grabbers.
 #[derive(Component)]
-struct GrabberJoint;
+pub struct GrabberJoint;
 
 /// The point that the grabbed entity should follow, positioned at the cursor position.
 #[derive(Component)]
-struct GrabPoint;
+pub struct GrabPoint;
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
-fn grab(
+pub fn grab(
     mut commands: Commands,
-    buttons: Res<Input<MouseButton>>,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    cameras: Query<(&Camera, &GlobalTransform)>,
     mut grabbers: Query<(Entity, &mut Position), (With<GrabPoint>, Without<Collider>)>,
     joints: Query<(Entity, &DistanceJoint), With<GrabberJoint>>,
     bodies: Query<(&RigidBody, &Position, &Rotation), Without<GrabPoint>>,
     spatial_query: SpatialQuery,
+    inputs: Res<PlayerInputs<GgrsConfig>>,
 ) {
-    // If grab button is pressed, spawn or update grab point and grabber joint if they don't exist
-    if buttons.pressed(MouseButton::Left) {
-        let window = windows.single();
-        let (camera, camera_transform) = cameras.single();
-
-        if let Some(cursor_world_pos) = window
-            .cursor_position()
-            .and_then(|cursor| camera.viewport_to_world_2d(camera_transform, cursor))
-        {
+    for input in inputs.iter() {
+        let buttons = input.0.buttons;
+        // If grab button is pressed, spawn or update grab point and grabber joint if they don't exist
+        if buttons & INPUT_MOUSE_LEFT != 0 {
+            let cursor_world_pos = input.0.mouse_pos;
+            info!("mouse left held, updating grab {cursor_world_pos}");
             let grabber_entity: Entity;
 
             // If grabber exists, update its position, otherwise spawn it
@@ -56,6 +56,7 @@ fn grab(
             } else {
                 grabber_entity = commands
                     .spawn((RigidBody::Kinematic, Position(cursor_world_pos), GrabPoint))
+                    .add_rollback()
                     .id();
             }
 
@@ -69,28 +70,32 @@ fn grab(
                     if projection.point.distance(cursor_world_pos) <= GRAB_MIN_DISTANCE {
                         // Spawn grabber joint
                         if let Ok((_, position, rotation)) = bodies.get(projection.entity) {
-                            commands.spawn((
-                                DistanceJoint::new(grabber_entity, projection.entity)
-                                    .with_compliance(GRAB_COMPLIANCE)
-                                    .with_local_anchor_2(
-                                        rotation.inverse().rotate(projection.point - position.0),
-                                    )
-                                    .with_linear_velocity_damping(GRAB_LINEAR_DAMPING)
-                                    .with_angular_velocity_damping(GRAB_ANGULAR_DAMPING),
-                                GrabberJoint,
-                            ));
+                            commands
+                                .spawn((
+                                    DistanceJoint::new(grabber_entity, projection.entity)
+                                        .with_compliance(GRAB_COMPLIANCE)
+                                        .with_local_anchor_2(
+                                            rotation
+                                                .inverse()
+                                                .rotate(projection.point - position.0),
+                                        )
+                                        .with_linear_velocity_damping(GRAB_LINEAR_DAMPING)
+                                        .with_angular_velocity_damping(GRAB_ANGULAR_DAMPING),
+                                    GrabberJoint,
+                                ))
+                                .add_rollback();
                         }
                     }
                 }
             }
-        }
-    } else if buttons.just_released(MouseButton::Left) {
-        // If grab button was released, despawn grabbers and grabber joints
-        for (entity, _) in &grabbers {
-            commands.entity(entity).despawn_recursive();
-        }
-        for (entity, _) in &joints {
-            commands.entity(entity).despawn_recursive();
+        } else {
+            // // If grab button is released, despawn any grabbers and grabber joints
+            // for (entity, _) in &grabbers {
+            //     commands.entity(entity).despawn_recursive();
+            // }
+            // for (entity, _) in &joints {
+            //     commands.entity(entity).despawn_recursive();
+            // }
         }
     }
 }

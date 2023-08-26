@@ -3,7 +3,7 @@ use args::*;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_ggrs::ggrs::{Config, PlayerType, SessionBuilder};
+use bevy_ggrs::ggrs::{Config, GGRSEvent, PlayerType, SessionBuilder};
 use bevy_ggrs::{
     AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
 };
@@ -169,18 +169,18 @@ fn movement(
     mut marbles: Query<&mut LinearVelocity, With<Marble>>,
 ) {
     for input in inputs.iter() {
-        let input = input.0.buttons;
+        let buttons = input.0.buttons;
         for mut linear_velocity in &mut marbles {
-            if input & INPUT_UP != 0 {
+            if buttons & INPUT_UP != 0 {
                 linear_velocity.y += 50.0;
             }
-            if input & INPUT_DOWN != 0 {
+            if buttons & INPUT_DOWN != 0 {
                 linear_velocity.y -= 10.0;
             }
-            if input & INPUT_LEFT != 0 {
+            if buttons & INPUT_LEFT != 0 {
                 linear_velocity.x -= 10.0;
             }
-            if input & INPUT_RIGHT != 0 {
+            if buttons & INPUT_RIGHT != 0 {
                 linear_velocity.x += 10.0;
             }
         }
@@ -210,6 +210,7 @@ fn main() {
                 .set(LogPlugin {
                     filter:
                         "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug,bevy_ggrs=debug"
+                            // "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug"
                             .into(),
                     level: bevy::log::Level::DEBUG,
                 })
@@ -261,6 +262,7 @@ fn main() {
             )
                 .chain(),
         )
+        .add_systems(GgrsSchedule, grabber_2d::grab.before(step_physics))
         .run();
 }
 
@@ -297,6 +299,9 @@ fn log_ggrs_events(mut session: ResMut<Session<GgrsConfig>>) {
         Session::P2P(s) => {
             for event in s.events() {
                 info!("GGRS Event: {event:?}");
+                if let GGRSEvent::DesyncDetected { .. } = event {
+                    panic!("desynced!");
+                }
             }
         }
         Session::SyncTest(_) => {}
