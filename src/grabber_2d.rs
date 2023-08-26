@@ -25,43 +25,59 @@ const GRAB_ANGULAR_DAMPING: Scalar = 1.0;
 
 /// A marker component for joints used by grabbers.
 #[derive(Component)]
-pub struct GrabberJoint;
+pub struct GrabberJoint {
+    player_handle: usize,
+}
 
 /// The point that the grabbed entity should follow, positioned at the cursor position.
 #[derive(Component)]
-pub struct GrabPoint;
+pub struct Grabber {
+    player_handle: usize,
+}
 
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn grab(
     mut commands: Commands,
-    mut grabbers: Query<(Entity, &mut Position), (With<GrabPoint>, Without<Collider>)>,
-    joints: Query<(Entity, &DistanceJoint), With<GrabberJoint>>,
-    bodies: Query<(&RigidBody, &Position, &Rotation), Without<GrabPoint>>,
+    mut grabbers: Query<(Entity, &Grabber, &mut Position), (With<Grabber>, Without<Collider>)>,
+    joints: Query<(Entity, &GrabberJoint, &DistanceJoint)>,
+    bodies: Query<(&RigidBody, &Position, &Rotation), Without<Grabber>>,
     spatial_query: SpatialQuery,
     inputs: Res<PlayerInputs<GgrsConfig>>,
 ) {
-    for input in inputs.iter() {
+    for (player_handle, input) in inputs.iter().enumerate() {
         let buttons = input.0.buttons;
         // If grab button is pressed, spawn or update grab point and grabber joint if they don't exist
         if buttons & INPUT_MOUSE_LEFT != 0 {
             let cursor_world_pos = input.0.mouse_pos;
             info!("mouse left held, updating grab {cursor_world_pos}");
-            let grabber_entity: Entity;
 
             // If grabber exists, update its position, otherwise spawn it
-            if let Ok((entity, mut position)) = grabbers.get_single_mut() {
+            let grabber_entity = if let Some((entity, _grabber, mut position)) = grabbers
+                .iter_mut()
+                .find(|(_entity, grabber, _position)| grabber.player_handle == player_handle)
+            {
                 position.0 = cursor_world_pos;
-                grabber_entity = entity;
+                entity
             } else {
-                grabber_entity = commands
-                    .spawn((RigidBody::Kinematic, Position(cursor_world_pos), GrabPoint))
+                commands
+                    .spawn((
+                        RigidBody::Kinematic,
+                        Position(cursor_world_pos),
+                        Grabber { player_handle },
+                    ))
                     .add_rollback()
-                    .id();
-            }
+                    .id()
+            };
 
-            // If grabber joint doesn't exist, spawn it
-            if joints.is_empty() {
+            // if joints.is_empty() {
+            if joints
+                .iter()
+                .find(|(_entity, grabber_joint, _joint)| {
+                    grabber_joint.player_handle == player_handle
+                })
+                .is_none()
+            {
                 // Use point projection to find closest point on collider
                 let filter = SpatialQueryFilter::default();
                 let projection = spatial_query.project_point(cursor_world_pos, true, filter);
@@ -81,7 +97,7 @@ pub fn grab(
                                         )
                                         .with_linear_velocity_damping(GRAB_LINEAR_DAMPING)
                                         .with_angular_velocity_damping(GRAB_ANGULAR_DAMPING),
-                                    GrabberJoint,
+                                    GrabberJoint { player_handle },
                                 ))
                                 .add_rollback();
                         }
@@ -89,13 +105,17 @@ pub fn grab(
                 }
             }
         } else {
-            // // If grab button is released, despawn any grabbers and grabber joints
-            // for (entity, _) in &grabbers {
-            //     commands.entity(entity).despawn_recursive();
-            // }
-            // for (entity, _) in &joints {
-            //     commands.entity(entity).despawn_recursive();
-            // }
+            // If grab button is released, despawn any grabbers and grabber joints
+            for (entity, grabber, _) in &grabbers {
+                if (grabber.player_handle) == player_handle {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
+            for (entity, grabber_joint, _) in &joints {
+                if (grabber_joint.player_handle) == player_handle {
+                    commands.entity(entity).despawn_recursive();
+                }
+            }
         }
     }
 }
