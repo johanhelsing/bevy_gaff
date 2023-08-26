@@ -1,36 +1,29 @@
+use crate::input::*;
 use args::*;
-use bevy::core::{Pod, Zeroable};
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_ggrs::ggrs::{Config, DesyncDetection, PlayerHandle, PlayerType, SessionBuilder};
+use bevy_ggrs::ggrs::{Config, DesyncDetection, PlayerType, SessionBuilder};
 use bevy_ggrs::{
     AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
 };
 use bevy_matchbox::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use grabber_2d::GrabberPlugin;
+use input::INPUT_UP;
 
 mod args;
 mod grabber_2d;
+mod input;
 
 const FPS: usize = 60;
 
-/// You need to define a config struct to bundle all the generics of GGRS. You can safely ignore
-/// `State` and leave it as u8 for all GGRS functionality.
-/// TODO: Find a way to hide the state type.
 #[derive(Debug)]
 struct GgrsConfig;
 impl Config for GgrsConfig {
     type Input = GaffInput;
     type State = u8;
     type Address = PeerId;
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, Pod, Zeroable)]
-struct GaffInput {
-    buttons: u8,
 }
 
 #[derive(Component)]
@@ -78,6 +71,7 @@ fn setup_scene(mut commands: Commands, frame: Res<FrameCount>) {
             Collider::cuboid(50.0 * 20.0, 50.0),
         ))
         .add_rollback();
+
     // Floor
     commands
         .spawn((
@@ -91,6 +85,7 @@ fn setup_scene(mut commands: Commands, frame: Res<FrameCount>) {
             Collider::cuboid(50.0 * 20.0, 50.0),
         ))
         .add_rollback();
+
     // Left wall
     commands
         .spawn((
@@ -104,6 +99,7 @@ fn setup_scene(mut commands: Commands, frame: Res<FrameCount>) {
             Collider::cuboid(50.0, 50.0 * 11.0),
         ))
         .add_rollback();
+
     // Right wall
     commands
         .spawn((
@@ -420,30 +416,6 @@ fn log_ggrs_events(mut session: ResMut<Session<GgrsConfig>>) {
         Session::SyncTest(_) => {}
         _ => panic!("This example focuses on p2p and synctest"),
     }
-}
-
-const INPUT_UP: u8 = 1 << 0;
-const INPUT_DOWN: u8 = 1 << 1;
-const INPUT_LEFT: u8 = 1 << 2;
-const INPUT_RIGHT: u8 = 1 << 3;
-
-fn input(_handle: In<PlayerHandle>, keyboard_input: Res<Input<KeyCode>>) -> GaffInput {
-    let mut input: u8 = 0;
-
-    if keyboard_input.pressed(KeyCode::W) {
-        input |= INPUT_UP;
-    }
-    if keyboard_input.pressed(KeyCode::A) {
-        input |= INPUT_LEFT;
-    }
-    if keyboard_input.pressed(KeyCode::S) {
-        input |= INPUT_DOWN;
-    }
-    if keyboard_input.pressed(KeyCode::D) {
-        input |= INPUT_RIGHT;
-    }
-
-    GaffInput { buttons: input }
 }
 
 fn increase_frame_system(mut frame_count: ResMut<FrameCount>) {
