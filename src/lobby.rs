@@ -119,7 +119,7 @@ fn lobby_system(
 
     // start the GGRS session
     let session = session_builder
-        .with_desync_detection_mode(DesyncDetection::On { interval: 10 })
+        .with_desync_detection_mode(DesyncDetection::On { interval: 1 })
         .start_p2p_session(channel)
         .expect("failed to start session");
 
