@@ -2,6 +2,8 @@
 name = "bevy_gaff"
 version = "0.1.0"
 edition = "2021"
+authors = ["Johan Helsing <johanhelsing@gmail.com>"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 bevy = "0.11"
