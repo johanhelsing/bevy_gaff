@@ -43,7 +43,7 @@ cargo run
 The example can also be run "single-player":
 
 ```shell
-cargo run --players 1
+cargo run -- --players 1
 ```
 
 Or with any other number of players
