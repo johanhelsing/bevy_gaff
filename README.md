@@ -25,9 +25,32 @@ Input is also sent directly between players (p2p, no intermediate server) even
 when running on WASM,  this means that if the players are located closely,
 mis-predictions will be rare and the latency barely noticeable.
 
+## Running it
+
+Install and run matchbox_server
+
+```shell
+cargo install matchbox_server
+matchbox_server
+```
+
+...and run two instances of the "game":
+
+```shell
+cargo run
+```
+
+The example can also be run "single-player":
+
+```shell
+cargo run --players 1
+```
+
+Or with any other number of players
+
 ## Issues
 
-- [ ]: simulation occasionally desyncs on rollbacks locally
+- [ ] simulation occasionally desyncs on rollbacks locally
 
 ## Relevant links
 
