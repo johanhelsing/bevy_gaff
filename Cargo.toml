@@ -5,12 +5,16 @@ edition = "2021"
 
 [dependencies]
 bevy = "0.11"
-bevy_xpbd_2d = { git = "https://github.com/jondolf/bevy_xpbd" }
+bevy_xpbd_2d = { git = "https://github.com/jondolf/bevy_xpbd", features = ["enhanced-determinism"] }
 bevy_matchbox = { version = "0.7", features = ["ggrs"] }
 bevy_ggrs = "0.13"
 bytemuck = { version = "1.7", features = ["derive"] }
 clap = { version = "4.4", features = ["derive"] }
 serde = "1"
+
+# make glam operations deterministic
+# see: https://github.com/bitshifter/glam-rs/discussions/388
+glam = { version = "0.24", features = ["libm"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = [
