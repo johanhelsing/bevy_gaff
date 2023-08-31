@@ -156,6 +156,7 @@ fn spawn_marbles(
                     RigidBody::Dynamic,
                     Position(position),
                     Rotation::default(),
+                    PreviousRotation::default(),
                     Collider::ball(marble_radius),
                     Friction::new(0.0),
                     PreviousPosition(position),
@@ -234,6 +235,8 @@ fn main() {
                 .with_input_system(input)
                 .register_rollback_component::<Transform>()
                 .register_rollback_component::<Position>()
+                .register_rollback_component::<Rotation>()
+                .register_rollback_component::<PreviousRotation>()
                 .register_rollback_component::<LinearVelocity>()
                 .register_rollback_component::<AngularVelocity>()
                 .register_rollback_component::<PreviousPosition>()
