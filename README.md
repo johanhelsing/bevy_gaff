@@ -54,4 +54,5 @@ Or with any other number of players
 
 ## Relevant links
 
+- [Gaffer On Games - Introduction to networked physics](https://gafferongames.com/post/introduction_to_networked_physics/)
 - https://github.com/bitshifter/glam-rs/discussions/388
