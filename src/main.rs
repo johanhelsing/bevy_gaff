@@ -32,12 +32,12 @@ struct Marble;
 /// just used for desync detection for now
 #[derive(Component, Default, Reflect)]
 #[reflect(Component, Hash)]
-struct PreviousPosition(Vec2);
+struct PrevPos(Vec2);
 
 #[derive(Component)]
 pub struct MainCamera;
 
-impl std::hash::Hash for PreviousPosition {
+impl std::hash::Hash for PrevPos {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.0.x.to_bits().hash(state);
         self.0.y.to_bits().hash(state);
@@ -156,10 +156,9 @@ fn spawn_marbles(
                     RigidBody::Dynamic,
                     Position(position),
                     Rotation::default(),
-                    PreviousRotation::default(),
                     Collider::ball(marble_radius),
                     Friction::new(0.0),
-                    PreviousPosition(position),
+                    PrevPos(position),
                     Marble,
                 ))
                 .add_rollback();
@@ -235,11 +234,13 @@ fn main() {
                 .with_input_system(input)
                 .register_rollback_component::<Transform>()
                 .register_rollback_component::<Position>()
+                .register_rollback_component::<PreviousPosition>()
+                .register_rollback_component::<LinearVelocity>()
                 .register_rollback_component::<Rotation>()
                 .register_rollback_component::<PreviousRotation>()
-                .register_rollback_component::<LinearVelocity>()
                 .register_rollback_component::<AngularVelocity>()
-                .register_rollback_component::<PreviousPosition>()
+                // .register_rollback_component::<DistanceJoint>() // TODO: make it implement reflect
+                .register_rollback_component::<PrevPos>() // for desync detection
                 .register_rollback_resource::<FrameCount>(),
         )
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
@@ -318,7 +319,7 @@ fn increase_frame_system(mut frame_count: ResMut<FrameCount>) {
     frame_count.frame += 1;
 }
 
-fn update_previous_position(mut positions: Query<(&mut PreviousPosition, &Position)>) {
+fn update_previous_position(mut positions: Query<(&mut PrevPos, &Position)>) {
     for (mut previous_position, position) in &mut positions {
         previous_position.0 = position.0;
     }
