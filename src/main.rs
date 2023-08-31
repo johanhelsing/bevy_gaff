@@ -140,8 +140,8 @@ fn spawn_marbles(
         ..default()
     };
 
-    let half_width = 9;
-    let half_height = 9;
+    let half_width = 5;
+    let half_height = 5;
 
     // Spawn stacks of marbles
     for x in -half_width..=half_width {
