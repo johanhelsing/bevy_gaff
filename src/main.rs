@@ -29,6 +29,7 @@ impl Config for GgrsConfig {
 #[derive(Component)]
 struct Marble;
 
+/// just used for desync detection for now
 #[derive(Component, Default, Reflect)]
 #[reflect(Component, Hash)]
 struct PreviousPosition(Vec2);
@@ -139,11 +140,12 @@ fn spawn_marbles(
         ..default()
     };
 
-    let half_width = 3;
-    let half_height = 3;
+    let half_width = 9;
+    let half_height = 9;
+
     // Spawn stacks of marbles
-    for x in -half_width..half_width {
-        for y in -half_height..half_height {
+    for x in -half_width..=half_width {
+        for y in -half_height..=half_height {
             let position = Vector::new(
                 x as Scalar * (2.5 * marble_radius),
                 y as Scalar * (2.5 * marble_radius),
@@ -209,8 +211,8 @@ fn main() {
             DefaultPlugins
                 .set(LogPlugin {
                     filter:
-                        "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug,bevy_ggrs=debug"
-                            // "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug"
+                        // "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug,bevy_ggrs=debug"
+                            "info,wgpu_core=warn,wgpu_hal=warn,matchbox_socket=debug"
                             .into(),
                     level: bevy::log::Level::DEBUG,
                 })
