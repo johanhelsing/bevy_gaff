@@ -7,6 +7,7 @@ use bevy_ggrs::ggrs::{Config, GGRSEvent, PlayerType, SessionBuilder};
 use bevy_ggrs::{
     AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_matchbox::prelude::*;
 use bevy_xpbd_2d::{math::*, prelude::*};
 use grabber_2d::GrabberPlugin;
@@ -227,6 +228,7 @@ fn main() {
             FrameTimeDiagnosticsPlugin,
             LobbyPlugin,
             GrabberPlugin,
+            WorldInspectorPlugin::default(),
         ))
         .add_ggrs_plugin(
             GgrsPlugin::<GgrsConfig>::new()
