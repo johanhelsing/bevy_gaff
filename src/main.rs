@@ -290,7 +290,9 @@ pub fn configure_session(players: usize) -> SessionBuilder<GgrsConfig> {
     SessionBuilder::<GgrsConfig>::new()
         .with_num_players(players)
         .with_max_prediction_window(12)
-        .with_input_delay(2)
+        // TODO: re-enable input delay when rollbacks are working properly
+        // .with_input_delay(2)
+        .with_input_delay(0)
         .with_fps(FPS)
         .expect("invalid fps")
 }

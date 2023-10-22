@@ -50,7 +50,7 @@ Or with any other number of players
 
 ## Issues
 
-- [ ] simulation occasionally desyncs on rollbacks locally
+- [ ] simulation desyncs on rollbacks
 
 ## Relevant links
 
