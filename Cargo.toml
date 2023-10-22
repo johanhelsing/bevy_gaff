@@ -33,3 +33,6 @@ opt-level = 2 # Use slightly better optimization, so examples work
 
 [patch.crates-io]
 bevy_ggrs = { git = "https://github.com/bushrat011899/bevy_ggrs", branch = "PerTypeSnapshotting" }
+
+[patch."https://github.com/jondolf/bevy_xpbd"]
+bevy_xpbd_2d = { git = "https://github.com/johanhelsing/bevy_xpbd_jondolf", branch = "map-entities" }

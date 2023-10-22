@@ -4,8 +4,8 @@ use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
 use bevy_ggrs::{
-    prelude::*, GgrsComponentChecksumHashPlugin, GgrsComponentSnapshotClonePlugin,
-    GgrsResourceSnapshotClonePlugin,
+    prelude::*, GgrsComponentChecksumHashPlugin, GgrsComponentMapEntitiesPlugin,
+    GgrsComponentSnapshotClonePlugin, GgrsResourceSnapshotClonePlugin,
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_matchbox::prelude::*;
@@ -234,8 +234,7 @@ fn main() {
         .add_plugins(GgrsComponentSnapshotClonePlugin::<PreviousRotation>::default())
         .add_plugins(GgrsComponentSnapshotClonePlugin::<AngularVelocity>::default())
         .add_plugins(GgrsComponentSnapshotClonePlugin::<DistanceJoint>::default())
-        // TODO: make DistanceJoint implement MapEntities! This is likely causing the desync on drag
-        // .add_plugins(GgrsComponentMapEntitiesPlugin::<DistanceJoint>::default())
+        .add_plugins(GgrsComponentMapEntitiesPlugin::<DistanceJoint>::default())
         .add_plugins(GgrsComponentSnapshotClonePlugin::<PrevPos>::default()) // just for desync detection
         .add_plugins(GgrsComponentChecksumHashPlugin::<PrevPos>::default())
         .add_plugins(GgrsResourceSnapshotClonePlugin::<FrameCount>::default())
