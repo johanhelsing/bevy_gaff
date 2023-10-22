@@ -3,9 +3,9 @@ use args::*;
 use bevy::ecs::schedule::ScheduleLabel;
 use bevy::log::LogPlugin;
 use bevy::{diagnostic::FrameTimeDiagnosticsPlugin, prelude::*, sprite::MaterialMesh2dBundle};
-use bevy_ggrs::ggrs::{Config, GGRSEvent, PlayerType, SessionBuilder};
 use bevy_ggrs::{
-    AddRollbackCommandExtension, GgrsAppExtension, GgrsPlugin, GgrsSchedule, PlayerInputs, Session,
+    prelude::*, GgrsComponentChecksumHashPlugin, GgrsComponentSnapshotClonePlugin,
+    GgrsResourceSnapshotClonePlugin,
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_matchbox::prelude::*;
@@ -19,19 +19,13 @@ mod lobby;
 
 const FPS: usize = 60;
 
-#[derive(Debug)]
-pub struct GgrsConfig;
-impl Config for GgrsConfig {
-    type Input = GaffInput;
-    type State = u8;
-    type Address = PeerId;
-}
+pub type GgrsConfig = bevy_ggrs::GgrsConfig<GaffInput, PeerId>;
 
 #[derive(Component)]
 struct Marble;
 
 /// just used for desync detection for now
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Clone, Copy, Default, Reflect)]
 #[reflect(Component, Hash)]
 struct PrevPos(Vec2);
 
@@ -45,7 +39,7 @@ impl std::hash::Hash for PrevPos {
     }
 }
 
-#[derive(Resource, Debug, Default, Reflect, Hash, Deref, DerefMut)]
+#[derive(Resource, Clone, Copy, Debug, Default, Reflect, Hash, Deref, DerefMut)]
 #[reflect(Resource, Hash)]
 struct FrameCount {
     frame: usize,
@@ -230,21 +224,21 @@ fn main() {
             GrabberPlugin,
             WorldInspectorPlugin::default(),
         ))
-        .add_ggrs_plugin(
-            GgrsPlugin::<GgrsConfig>::new()
-                .with_update_frequency(FPS)
-                .with_input_system(input)
-                .register_rollback_component::<Transform>()
-                .register_rollback_component::<Position>()
-                .register_rollback_component::<PreviousPosition>()
-                .register_rollback_component::<LinearVelocity>()
-                .register_rollback_component::<Rotation>()
-                .register_rollback_component::<PreviousRotation>()
-                .register_rollback_component::<AngularVelocity>()
-                // .register_rollback_component::<DistanceJoint>() // TODO: make it implement reflect
-                .register_rollback_component::<PrevPos>() // for desync detection
-                .register_rollback_resource::<FrameCount>(),
-        )
+        .add_plugins(GgrsPlugin::<GgrsConfig>::default())
+        .add_systems(ReadInputs, input)
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<Transform>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<Position>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<PreviousPosition>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<LinearVelocity>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<Rotation>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<PreviousRotation>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<AngularVelocity>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<DistanceJoint>::default())
+        // TODO: make DistanceJoint implement MapEntities! This is likely causing the desync on drag
+        // .add_plugins(GgrsComponentMapEntitiesPlugin::<DistanceJoint>::default())
+        .add_plugins(GgrsComponentSnapshotClonePlugin::<PrevPos>::default()) // just for desync detection
+        .add_plugins(GgrsComponentChecksumHashPlugin::<PrevPos>::default())
+        .add_plugins(GgrsResourceSnapshotClonePlugin::<FrameCount>::default())
         .insert_resource(ClearColor(Color::rgb(0.05, 0.05, 0.1)))
         .insert_resource(SubstepCount(6))
         .insert_resource(Gravity(Vector::NEG_Y * 1000.0))
@@ -307,7 +301,7 @@ fn log_ggrs_events(mut session: ResMut<Session<GgrsConfig>>) {
         Session::P2P(s) => {
             for event in s.events() {
                 info!("GGRS Event: {event:?}");
-                if let GGRSEvent::DesyncDetected { .. } = event {
+                if let GgrsEvent::DesyncDetected { .. } = event {
                     panic!("desynced!");
                 }
             }

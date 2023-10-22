@@ -1,9 +1,10 @@
 use bevy::core::{Pod, Zeroable};
 use bevy::prelude::*;
+use bevy::utils::HashMap;
 use bevy::window::PrimaryWindow;
-use bevy_ggrs::ggrs::PlayerHandle;
+use bevy_ggrs::{LocalInputs, LocalPlayers};
 
-use crate::MainCamera;
+use crate::{GgrsConfig, MainCamera};
 
 #[repr(C)]
 #[derive(Copy, Clone, PartialEq, Pod, Zeroable, Debug, Default, Reflect)]
@@ -20,12 +21,15 @@ pub const INPUT_RIGHT: u8 = 1 << 3;
 pub const INPUT_MOUSE_LEFT: u8 = 1 << 4;
 
 pub fn input(
-    _handle: In<PlayerHandle>,
+    mut commands: Commands,
     keyboard: Res<Input<KeyCode>>,
     windows: Query<&Window, With<PrimaryWindow>>,
     cameras: Query<(&Camera, &GlobalTransform), With<MainCamera>>,
     mouse_buttons: Res<Input<MouseButton>>,
-) -> GaffInput {
+    local_players: Res<LocalPlayers>,
+) {
+    let mut local_inputs = HashMap::new();
+
     let mut input: u8 = 0;
 
     if keyboard.pressed(KeyCode::W) {
@@ -53,9 +57,15 @@ pub fn input(
         .map(|ray| ray.origin.truncate())
         .unwrap_or(Vec2::ZERO);
 
-    GaffInput {
+    let gaff_input = GaffInput {
         buttons: input,
         mouse_pos,
         ..default()
+    };
+
+    for handle in &local_players.0 {
+        local_inputs.insert(*handle, gaff_input);
     }
+
+    commands.insert_resource(LocalInputs::<GgrsConfig>(local_inputs));
 }

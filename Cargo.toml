@@ -30,3 +30,6 @@ bevy_ggrs = { version = "0.13", features = ["wasm-bindgen"] }
 
 [profile.dev]
 opt-level = 2 # Use slightly better optimization, so examples work
+
+[patch.crates-io]
+bevy_ggrs = { git = "https://github.com/bushrat011899/bevy_ggrs", branch = "PerTypeSnapshotting" }
